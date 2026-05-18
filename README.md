@@ -9,34 +9,19 @@
 
 End-to-end yield prediction platform for Cameroon agriculture. Ingests soil, climate, satellite, and crop survey data through two ML pipelines (scikit-learn and LightGBM/XGBoost/PyTorch) to predict harvest yields across 8 agroecological zones and 27 crop types.
 
-## Table of contents
-
-- [Quick start](#quick-start)
-- [Dataset](#dataset)
-- [Project structure](#project-structure)
-- [Models](#models)
-- [Benchmarks](#benchmarks)
-- [Features](#features)
-- [Data validation](#data-validation)
-- [Agroecological zones](#agroecological-zones)
-- [Climate data collection](#climate-data-collection)
-- [Configuration](#configuration)
-- [API](#api)
-- [Testing](#testing)
-- [License](#license)
-
 ## Quick start
 
 ```bash
 git clone https://github.com/farmstomarket/agri-harvest-cameroon.git
 cd agri-harvest-cameroon
 python -m venv .venv && source .venv/bin/activate
-
-pip install -e ".[ml,dev]"
+pip install -e ".[ml,geo,climate,dev]"
 cp .env.example .env
 ```
 
-Train a model in three lines:
+Requires Python 3.12+.
+
+Train a model:
 
 ```python
 from models.v1.trainer import YieldModelTrainer
@@ -44,8 +29,6 @@ from models.v1.trainer import YieldModelTrainer
 trainer = YieldModelTrainer("data/features.parquet")
 comparison = trainer.run(["lightgbm"], optimize=True)
 ```
-
-Requires Python 3.12+.
 
 ## Dataset
 
@@ -76,54 +59,6 @@ Three Jupyter notebooks walk through the data pipeline:
 | `01_data_exploration.ipynb` | Exploratory data analysis |
 | `02_feature_engineering.ipynb` | Feature engineering (36 raw -> 66 features) |
 | `data_generation_notebook.ipynb` | Synthetic data generation |
-
-## Project structure
-
-```
-agri-harvest/
-├── config/
-│   ├── schema/             # Pydantic v2 validation (crop, soil, weather)
-│   ├── yaml/               # Geography, agriculture, model hyperparameters
-│   ├── json/               # External data schemas (IRAD, satellite, NetCDF)
-│   ├── settings.py         # Runtime settings via pydantic-settings
-│   └── yaml_loader.py      # YAML config loader
-├── data/
-│   ├── collectors/         # TerraClimate (OpenDAP) + CHIRPS clients
-│   └── processing/         # Aggregation and export utilities
-├── models/
-│   ├── config.py           # Feature lists, leakage guard, ModelConfig
-│   ├── data_loader.py      # CSV loading, prepare_features, spatial split
-│   ├── preprocessing.py    # ColumnTransformer (StandardScaler + passthrough)
-│   ├── estimators.py       # Ridge, RF, HGB, Stacking registry
-│   ├── evaluator.py        # RMSE, MAE, R2, MAPE metrics
-│   ├── trainer.py          # v0 orchestrator
-│   ├── predict.py          # v0 inference with feature validation
-│   ├── persistence.py      # joblib + JSON metadata persistence
-│   ├── feature_analysis.py # Feature importances (tree-based + permutation)
-│   └── v1/
-│       ├── config.py           # v1 config (LGB, XGB, YieldNet, time-series)
-│       ├── data_loader.py      # Polars-based loading, dtype optimization
-│       ├── preprocessing.py    # Missing value imputation, PyTorch scaling
-│       ├── estimators.py       # YieldNet, LightGBM/XGBoost param builders
-│       ├── evaluator.py        # Same metrics API as v0
-│       ├── trainer.py          # v1 orchestrator (LGB, XGB, YieldNet)
-│       ├── predict.py          # v1 inference (LGB/XGB/PyTorch auto-detect)
-│       ├── persistence.py      # Format-specific save/load (txt, json, pt)
-│       ├── tuning.py           # Optuna hyperparameter optimization
-│       ├── time_series.py      # HybridYieldModel (LSTM) + TransformerYieldModel
-│       ├── feature_analysis.py # LightGBM SHAP + gain importances
-│       └── convert_parquet.py  # CSV -> Parquet conversion utility
-├── utils/                  # Geospatial, date, file utilities
-├── scripts/
-│   └── collect_climate.py  # CLI for TerraClimate / CHIRPS collection
-├── notebooks/              # EDA, feature engineering, data generation
-├── tests/unit/             # 207 unit tests
-├── docs/source/            # Sphinx documentation
-├── main.py                 # FastAPI entry point
-├── pyproject.toml
-├── setup.py
-└── Makefile
-```
 
 ## Models
 
@@ -301,11 +236,9 @@ python scripts/collect_climate.py --source terraclimate --lat 3.87 --lon 11.52 -
 python scripts/collect_climate.py --source chirps --lat 3.87 --lon 11.52 --year 2023
 ```
 
-The `data/collectors/` module provides the underlying clients with coordinate validation and variable mapping.
-
 ## Configuration
 
-All hyperparameters and domain constants are externalized to YAML:
+All hyperparameters and domain constants are externalized to YAML (`config/yaml/`):
 
 | File | Contents |
 |---|---|
@@ -329,54 +262,10 @@ curl http://localhost:8000/health  # {"status": "ok"}
 ## Testing
 
 ```bash
-pytest tests/ -v          # 207 tests
-make test                 # shortcut
+pytest tests/ -v    # 207 tests
 ```
 
-Test coverage includes:
-- **Schemas**: coordinate bounds, soil texture sums, weather ranges, crop constraints
-- **Geospatial**: zone classification, distance calculations, UTM conversion
-- **Date utilities**: season detection, GDD calculation, date range validation
-- **Models v0**: estimator fit/predict, evaluator metrics, persistence roundtrip, leakage guard, predictor validation
-- **Models v1**: data loading, preprocessing, LightGBM/XGBoost/YieldNet, Optuna tuning, time-series models, MAPE near-zero stability
-
-## Installation
-
-### Minimal (API + data validation only)
-
-```bash
-pip install -e "."
-```
-
-### ML pipelines
-
-```bash
-pip install -e ".[ml]"
-```
-
-### Climate data collection
-
-```bash
-pip install -e ".[climate]"
-```
-
-### Geospatial utilities
-
-```bash
-pip install -e ".[geo]"
-```
-
-### Development (tests, linting, type checking)
-
-```bash
-pip install -e ".[dev]"
-```
-
-### Everything
-
-```bash
-pip install -e ".[ml,geo,climate,dev]"
-```
+Coverage includes schemas, geospatial utils, date utils, both model pipelines (estimators, evaluator, persistence, leakage guard, predictor validation), Optuna tuning, and time-series models.
 
 ## License
 
