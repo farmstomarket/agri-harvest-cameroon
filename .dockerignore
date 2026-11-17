@@ -1,0 +1,17 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.venv
+venv
+notebooks
+docs
+tests
+*.ipynb
+graphify-out
+.DS_Store
+.env
+.pytest_cache
+.mypy_cache
+.ruff_cache
