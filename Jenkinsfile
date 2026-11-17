@@ -101,8 +101,13 @@ pipeline {
               usernamePassword(credentialsId: 'harbor-creds', usernameVariable: 'HARBOR_USERNAME', passwordVariable: 'HARBOR_PASSWORD')
             ]) {
               sh '''
-                echo "$HARBOR_PASSWORD" | cosign login ${HARBOR_REGISTRY} -u "$HARBOR_USERNAME" --password-stdin
-                cosign sign --yes --key "$COSIGN_KEY" "${IMAGE_TAG}"
+                if ! command -v cosign >/dev/null 2>&1 && [ ! -x "$WORKSPACE/.cosignbin/cosign" ]; then
+                  mkdir -p "$WORKSPACE/.cosignbin"
+                  curl -sfL -o "$WORKSPACE/.cosignbin/cosign" https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 && chmod +x "$WORKSPACE/.cosignbin/cosign"
+                fi
+                COSIGN="$(command -v cosign || echo "$WORKSPACE/.cosignbin/cosign")"
+                echo "$HARBOR_PASSWORD" | "$COSIGN" login ${HARBOR_REGISTRY} -u "$HARBOR_USERNAME" --password-stdin
+                "$COSIGN" sign --yes --key "$COSIGN_KEY" "${IMAGE_TAG}"
               '''
             }
           } catch (err) {
